@@ -10,7 +10,7 @@ import livekit.api as livekit_api
 
 # Load environment variables from .env.local
 # These will be inherited by the subprocesses
-load_dotenv(dotenv_path=".env.local")
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

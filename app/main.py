@@ -24,13 +24,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(instructions="systemPrompt")
-
-
-async def entrypoint(ctx: agents.JobContext):
-    await ctx.connect()
-
+    def __init__(self, instructions=str) -> None:
+        super().__init__(instructions=instructions)
+    
     @function_tool()
     async def lookup_user(
         context: RunContext,
@@ -39,10 +35,18 @@ async def entrypoint(ctx: agents.JobContext):
         """Look up a user's information by ID."""
         return {"name": "John Doe", "email": "john.doe@example.com"}
 
+
+async def entrypoint(ctx: agents.JobContext):
+    await ctx.connect()
+
+    
+
     participant = await ctx.wait_for_participant()
     logger.info(f"Starting voice assistant for participant {participant.identity}")
 
     systemPrompt = getAgentDetails(participant.identity)
+    logger.info(f"System prompt: {systemPrompt}")
+    # Initialize the agent session with the Google Gemini model
 
     session = AgentSession(
         llm=google.beta.realtime.RealtimeModel(
@@ -55,7 +59,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     await session.start(
         room=ctx.room,
-        agent=Assistant(),
+        agent=Assistant(instructions=systemPrompt),
         room_input_options=RoomInputOptions(
             noise_cancellation=noise_cancellation.BVC(),
             video_enabled=True,

@@ -18,9 +18,10 @@ Company info: {company_info}
 """
 
 def getAgentDetails(agent_id):
-    url = f"https://staging.breezeflow.io/api/agent?id={agent_id}"
+    url = f"https://staging.breezeflow.io/api/v1/agent?id={agent_id}"
+    headers = {"Authorization": "Bearer yto1ad8ckbk87xjunxrq7mqdpbv4id"}
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         data = response.json()
 
@@ -35,5 +36,5 @@ def getAgentDetails(agent_id):
         return f"Failed to retrieve agent details: {str(e)}"
 
 # Example usage:
-agent_id = "b59bfa1b-695b-4033-9b49-e715ca3fd7f9"
-print(getAgentDetails(agent_id))
+# agent_id = "b59bfa1b-695b-4033-9b49-e715ca3fd7f9"
+# print(getAgentDetails(agent_id))
