@@ -20,6 +20,8 @@ from livekit.plugins import (
 from openai.types.beta.realtime.session import TurnDetection
 from prompt import getAgentDetails
 import logging
+from livekit import api
+from livekit.api import RoomParticipantIdentity
 
 
 load_dotenv()
@@ -43,11 +45,12 @@ class Assistant(Agent):
     @function_tool()
     async def label_page_elements(
         context: RunContext,
-        label: int,
+        label: str,
         action: str,
     ):
         """Label page elements using Javascript.
-        action: "label" or "click"
+        action: "label" or "click" or "scroll"
+        if action is "scroll", label is the scroll direction (up or down) 
         if action is "label", label is 0
         if action is "click", label is the label of the page elements to be clicked
         This function sends a request to the remote participant to label page elements.
@@ -106,13 +109,20 @@ async def entrypoint(ctx: agents.JobContext):
     await ctx.connect()
 
     
-    agent_id = ctx.job.metadata
-    logger.info(f"Agent ID: {agent_id}")
+    # agent_id = ctx.job
+    # logger.info(f"Agent ID: {agent_id}")
     participant = await ctx.wait_for_participant()
-    logger.info(f"Starting voice assistant for participant {participant.identity}")
+    logger.info(f"Starting voice assistant for participant {participant}")
 
-    systemPrompt = getAgentDetails(participant.identity)
-    logger.info(f"System prompt: {systemPrompt}")
+    async with api.LiveKitAPI() as lkapi:
+        res = await lkapi.room.get_participant(RoomParticipantIdentity(
+        room=ctx.job.room.name,
+        identity=participant.identity,
+        ))
+        logger.info(f"Participant info: {res.identity}, {res.name}, {res.metadata}")
+
+    systemPrompt = getAgentDetails(participant.name)
+    # logger.info(f"System prompt: {systemPrompt}")
     # Initialize the agent session with the Google Gemini model
 
     session = AgentSession(
@@ -142,6 +152,8 @@ async def entrypoint(ctx: agents.JobContext):
         room_input_options=RoomInputOptions(
             noise_cancellation=noise_cancellation.BVC(),
             video_enabled=True,
+            text_enabled=True,
+            audio_enabled=True,
         ),
         room_output_options=RoomOutputOptions(transcription_enabled=True),
     )
