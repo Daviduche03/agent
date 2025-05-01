@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 
 from livekit import agents
+import json
+from livekit.agents import ToolError
 from livekit.agents import (
     AgentSession,
     function_tool,
@@ -8,6 +10,7 @@ from livekit.agents import (
     RunContext,
     RoomInputOptions,
     RoomOutputOptions,
+    get_job_context
 )
 from livekit.plugins import (
     openai,
@@ -17,6 +20,7 @@ from livekit.plugins import (
 from openai.types.beta.realtime.session import TurnDetection
 from prompt import getAgentDetails
 import logging
+
 
 load_dotenv()
 
@@ -34,13 +38,76 @@ class Assistant(Agent):
     ) -> dict:
         """Look up a user's information by ID."""
         return {"name": "John Doe", "email": "john.doe@example.com"}
+    
+
+    @function_tool()
+    async def label_page_elements(
+        context: RunContext,
+        label: int,
+        action: str,
+    ):
+        """Label page elements using Javascript.
+        action: "label" or "click"
+        if action is "label", label is 0
+        if action is "click", label is the label of the page elements to be clicked
+        This function sends a request to the remote participant to label page elements.
+        Returns:
+            A dictionary with the labels of the page elements
+        """
+        try:
+            room = get_job_context().room
+            participant_identity = next(iter(room.remote_participants))
+            logger.info(f"Participant identity: {participant_identity}")
+            response = await room.local_participant.perform_rpc(
+                destination_identity=participant_identity,
+                method="labelPageElements",
+                payload=json.dumps({
+                    "labeled": True,
+                    "label": label,
+                    "action": action,
+                }),
+                # response_timeout=10.0 if high_accuracy else 5.0,
+            )
+            return response
+        except Exception:
+            raise ToolError("Unable to label page elements. Please try again later.")
+        
+    # @function_tool()
+    # async def click_page_elements(
+    #     context: RunContext,
+    #     label: int,
+    # ):
+    #     """Click page elements using Javascript.
+        
+    #     This function sends a request to the remote participant to click page elements with a specific label (number).
+    #     Returns:
+    #         A dictionary with the labels of the page elements
+    #     """
+    #     try:
+    #         room = get_job_context().room
+    #         participant_identity = next(iter(room.remote_participants))
+    #         logger.info(f"Participant identity: {participant_identity}, Label: {label}")
+    #         response = await room.local_participant.perform_rpc(
+    #             destination_identity=participant_identity,
+    #             method="clickPageElements",
+    #             payload=json.dumps({
+    #                 "clicked": True,
+    #                 "label": label
+    #             })
+    #             # response_timeout=10.0 if label else 5.0,
+    #         )
+    #         logger.info(f"Response: {response}")
+    #         return response
+    #     except Exception:
+    #         raise ToolError("Unable to click page elements. Please try again later.")
 
 
 async def entrypoint(ctx: agents.JobContext):
     await ctx.connect()
 
     
-
+    agent_id = ctx.job.metadata
+    logger.info(f"Agent ID: {agent_id}")
     participant = await ctx.wait_for_participant()
     logger.info(f"Starting voice assistant for participant {participant.identity}")
 
@@ -56,6 +123,18 @@ async def entrypoint(ctx: agents.JobContext):
             instructions=systemPrompt,
         ),
     )
+
+    # session = AgentSession(
+    #     llm=openai.realtime.RealtimeModel(
+    #         voice="coral",
+    #         turn_detection=TurnDetection(
+    #             type="semantic_vad",
+    #             eagerness="auto",
+    #             create_response=True,
+    #             interrupt_response=True,
+    #         ),
+    #     )
+    # )
 
     await session.start(
         room=ctx.room,
