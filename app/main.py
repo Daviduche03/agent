@@ -52,8 +52,9 @@ class Assistant(Agent):
         action: "label" or "click" or "scroll"
         if action is "scroll", label is the scroll direction (up or down) 
         if action is "label", label is 0
-        if action is "click", label is the label of the page elements to be clicked
-        This function sends a request to the remote participant to label page elements.
+        if action is "click", label is the numerical label of the page elements to be clicked
+
+        This function assigns numerical labels page elements.
         Returns:
             A dictionary with the labels of the page elements
         """
@@ -159,7 +160,7 @@ async def entrypoint(ctx: agents.JobContext):
     )
 
     await session.generate_reply(
-        instructions="Greet the user and offer your assistance."
+        instructions="Greet the user and enlighten them about yourself and the company.",
     )
 
 
